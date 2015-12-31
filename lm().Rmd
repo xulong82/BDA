@@ -1,0 +1,127 @@
+---
+title: "A fact about linear regression with a factorial predictor"
+author: "Xulong Wang"
+date: "October 19, 2015"
+output: pdf_document
+---
+
+```{r, include = F}
+
+library(dplyr)
+
+```
+
+A factorial predictor (x) and responses (y) by simulation. The predictor has 3 levels (A, B, C), each level has 3 replicates. "A" was the reference level. 
+
+```{r}
+
+set.seed(1)
+
+(x <- rep(c("A", "B", "C"), each = 3) %>% as.factor)
+
+(y <- as.numeric(x) * 3)
+(y <- y + rnorm(length(y), 0, 1))
+
+(fit = lm(y ~ x) %>% summary)
+
+```
+
+Another linear regression by using only two levels of the predictor.
+
+```{r}
+
+(x2 <- rep(c("A", "B"), each = 3) %>% as.factor)
+(y2 <- y[1:6])
+
+(fit2 = lm(y2 ~ x2) %>% summary)
+
+```
+
+Std. Error for "xB" in the two models are different, which leads to different t and p values. Parameter estimates are the same. 
+
+```{r}
+
+fit$coefficients
+fit2$coefficients
+
+```
+
+Parameter estimates were computed with LSE (least squared estimation): 
+
+$$\hat{\beta} = (X^TX)^{-1}X^Ty$$
+
+```{r}
+
+(X <- model.matrix( ~ x))
+(X2 <- model.matrix( ~ x2))
+
+
+(beta = solve(crossprod(X)) %*% crossprod(X, y))
+(beta2 = solve(crossprod(X2)) %*% crossprod(X2, y2))
+
+```
+
+Given $var(Ay) = Avar(y)A^T$, by plugging in the LSE equation for $\hat{\beta}$, standard errors were computed as follow:
+
+$$var(\hat{\beta}) = var((X^TX)^{-1}X^Ty) = var(y) (X^TX)^{-1}$$
+
+Given var(y) is a diagnol,
+
+$$var(y) (X^TX)^{-1} = var(y) diag((X^TX)^{-1})$$
+
+Let's compute $diag((X^TX)^{-1})$ for the two models.
+
+```{r}
+
+solve(crossprod(X))
+solve(crossprod(X2))
+
+```
+
+So, $diag((X^TX)^{-1})$ for the two models's shared parameters are the same. var(y) was the one who made all the differences. How was var(y) computed?
+
+In a given linear regression model, var(y) is the variation of the model residules given fixed covariates.
+
+```{r}
+
+(res = y - X %*% beta)
+(res2 = y2 - X2 %*% beta2)
+
+```
+
+We noticed model residuals for shared data are also the same because of the same parameter estimates. 
+
+To compute residual variation, R::lm() use: $SSR / (N-p)$$, where SSR is residual sum of squares, N is sample size, p is degree of freedom.
+
+```{r}
+
+N = 9
+p = 3
+
+(var_res = var(res) * (N - 1) / (N - p))
+
+var_beta = var_res * diag(solve(crossprod(X)))
+(se_beta = sqrt(var_beta))
+fit$coefficients[, "Std. Error"]
+
+N2 = 6
+p2 = 2
+
+(var_res2 = var(fit2$residuals) * (N2 - 1) / (N2 - p2))
+
+var_beta2 = var_res2 * diag(solve(crossprod(X2)))
+(se_beta2 = sqrt(var_beta2))
+fit2$coefficients[, "Std. Error"]
+
+```
+
+```{r}
+
+y[7:9] <- y[7:9] + rnorm(3, 0, 10)
+
+fit_new <- lm(y ~ x) %>% summary
+
+fit_new$coefficients[, "Std. Error"]
+fit2$coefficients[, "Std. Error"]
+
+```

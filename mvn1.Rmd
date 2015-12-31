@@ -1,0 +1,105 @@
+---
+title: "Estiamting multivariate normal models by Stan I"
+author: "Xulong Wang"
+output: pdf_document
+---
+
+```{r}
+
+library(rstan)
+
+rm(list = ls())
+setwd("~/Dropbox/Github/BDA")
+
+```
+
+# Models
+
+```{r}
+
+stan_multi_norm <- "
+
+data {
+int<lower=1> K; # outcomes
+vector[K] mu;
+cov_matrix[K] Sigma;
+vector[K] y;
+}
+
+parameters {
+vector[K] beta; 
+}
+
+model {
+beta ~ multi_normal(mu, Sigma);
+}
+
+"
+
+stan_multi_cholesky <- "
+
+data {
+int<lower=1> K; # outcomes
+vector[K] mu;
+cov_matrix[K] Sigma;
+vector[K] y;
+}
+
+transformed data {
+matrix[K, K] L;
+L <- cholesky_decompose(Sigma);
+}
+
+parameters {
+vector[K] beta; 
+}
+model {
+beta ~ multi_normal_cholesky(mu, L);
+}
+"
+
+```
+
+```{r}
+
+load("adsp.rdt")
+mdata <- adsp$mdata
+Sigma <- adsp$kinship$autosome
+Sigma[Sigma < 0] <- 0
+
+```
+
+```{r}
+
+stan_multi_norm <- stan_model(model_code = stan_multi_norm)
+stan_multi_cholesky <- stan_model(model_code = stan_multi_cholesky) 
+
+```
+
+```{r}
+
+dat <- list(K = 576, mu = rep(0, 576), y = mdata$AD1, Sigma = Sigma) 
+
+fit_multi_norm <- sampling(stan_multi_norm, chain = 2, data = dat) # 450 sec each chain
+fit_multi_cholesky <- sampling(stan_multi_cholesky, data = dat) # 170 sec each chain 
+
+```
+
+## multi_norm() is much slower than multi_normal_cholesky
+# How cholesky factoring speeding up MCMC sampling in a multivariate normal model?
+## In MCMC, a partial derivative step propagates through all parameters, which takes the most time
+# But what is it exactly?
+
+# Simulation to be continued ...
+
+```{r}
+
+# (Sigma <- matrix(c(10, 3, 3, 2), 2, 2))
+# y <- mvrnorm(n = 1e3, mu = rep(0, 2), Sigma)
+# colMeans(y)
+# var(y)
+# 
+# dat <- list(K = 2, mu = c(0, 0), Sigma = Sigma)
+# (fit_multi_norm <- sampling(stan_multi_norm, data = dat))
+
+```

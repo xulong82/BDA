@@ -1,0 +1,54 @@
+---
+title: "Estimation methods in Stan"
+output: pdf_document
+---
+
+```{r}
+
+library(rstan)
+
+stan_code <- "
+
+data {
+  int<lower=0> N;
+  real y[N];
+  real mu_prior;
+}
+
+parameters {
+  real mu;
+  real<lower=machine_precision()> sigma;
+}
+
+model {
+  mu ~ normal(mu_prior, 3);
+  y ~ normal(mu, sigma);
+}
+
+generated quantities {
+  real lpd;
+  lpd <- normal_log(y, mu, sigma); 
+}
+
+"
+
+model <- stan_model(model_code = stan_code) # compilation
+
+(y = rnorm(20, 1, 1))
+summary(y)
+
+dat <- list(N = 20, y = y, mu_prior = 1)
+dat <- list(N = 20, y = y, mu_prior = 2)
+dat <- list(N = 20, y = y, mu_prior = 5)
+
+(fit <- sampling(model, data = dat))
+(opt <- optimizing(model, data = dat))
+
+```
+
+Prior affect both sampling() and optimizing().
+
+1. How much it affect results in my ADSP data?
+2. What random effects look like in my model?
+
+Build a simple multivariate normal model and test.
