@@ -1,0 +1,114 @@
+---
+title: "Estiamting multivariate normal models by Stan II"
+author: "Xulong Wang"
+date: "October 21, 2015"
+output: pdf_document
+---
+
+```{r}
+
+library(rstan)
+
+rm(list = ls())
+setwd("~/Dropbox/Github/BDA")
+
+```
+
+# Model
+
+$$ y = \mu + random + residual $$
+$$ random \sim multi_norm(0, \sigma * K) $$
+$$ residual ~ normal(0, \epsilon * I) $$
+
+
+```{r}
+
+load("adsp.rdt")
+mdata <- adsp$mdata[1:100, ]
+Sigma <- adsp$kinship$autosome[1:100, 1:100]
+Sigma[Sigma < 0] <- 0
+
+model <- stan_model("mvn.stan") 
+
+```
+
+```{r}
+
+dat1 <- list(L = nrow(mdata), y = mdata$AD1, Sigma = Sigma, prior = 0) 
+dat2 <- list(L = nrow(mdata), y = mdata$AD1, Sigma = Sigma, prior = 2) 
+dat3 <- list(L = nrow(mdata), y = mdata$AD1, Sigma = Sigma, prior = 4) 
+
+opt <- optimizing(model, data = dat1)
+opt$par[c("mu", "sigma", "epsilon", "z[1]", "u[1]")]
+
+opt <- optimizing(model, data = dat2)
+opt$par[c("mu", "sigma", "epsilon", "z[1]", "u[1]")]
+
+opt <- optimizing(model, data = dat3)
+opt$par[c("mu", "sigma", "epsilon", "z[1]", "u[1]")]
+
+```
+
+1. Random effect was tiny
+2. Prior takes effect in optimizing()
+3. As long as prior wasn't extremely ill, it does not affect the inference in noticable scale
+
+```{r}
+
+fit <- sampling(model, chain = 2, data = dat1, iter = 600, warmup = 200)
+print(fit, pars = c("mu", "sigma", "epsilon", "z[1]", "u[1]"))
+
+fit <- sampling(model, chain = 2, data = dat2, iter = 600, warmup = 200)
+print(fit, pars = c("mu", "sigma", "epsilon", "z[1]", "u[1]"))
+
+```
+
+1. Random effect was also small, but much larger than the optimizing() result
+2. $\sigma$ clearly higher and comparable with $\epsilon$ in sampling()
+
+# Run sampling() on selected markers
+
+```{r}
+
+sample = extract(fit)
+
+C2 <- sample$C2
+C3 <- chol(Sigma)
+
+t(C3)[1:5, 1:5] 
+C2[1, 1:5, 1:5]
+
+```
+
+$$C_{stan} = (chol(K))^T$$
+
+```{r}
+
+u = sample$u
+u2 = sample$u2
+
+all(u == u2)
+
+z = sample$z
+my_u <- sample$sigma[1] * t(chol(Sigma)) %*% z[1, ]
+
+u[1, 1:10]
+my_u[1:10, ]
+
+```
+
+Stan use same mechanism for "generated quantities" and "transformed parameters": direct computing, no estimation
+
+```{r}
+
+cov = cov(u)
+
+cor(Sigma[1, ], cov(u)[1, ])
+cor(Sigma[2, ], cov(u)[2, ])
+cor(Sigma[3, ], cov(u)[3, ])
+
+```
+
+1. Covariances of the random samples are not Sigma. 
+2. We permit the random effect to be estimated again for each model
+3. We let covariates and response information flowing back to help estimating the random effect

@@ -1,0 +1,57 @@
+---
+title: "lp__ in Stan output"
+author: "Xulong Wang"
+date: "October 20, 2015"
+output: pdf_document
+---
+
+```{r}
+
+library(rstan)
+
+stan_code <- "
+
+data {
+  int<lower=0> N;
+  real y[N];
+}
+
+parameters {
+  real mu;
+  real<lower=machine_precision()> sigma;
+}
+
+model {
+  y ~ normal(mu, sigma);
+}
+
+generated quantities {
+  real lpd;
+  lpd <- normal_log(y, mu, sigma); 
+}
+
+"
+
+dat <- list(N = 20, y = rnorm(20, 1, 1)) # pseudo-data
+
+model <- stan_model(model_code = stan_code) # compilation
+myfit <- sampling(model, data = dat) # fit by sampling
+
+print(myfit)
+
+# print() shows summary statistics of model parameters, with an extra "lp__" term at the bottom.
+
+y = extract(myfit) # samples
+
+my_lpd = sapply(1:4000, function(i) sum(dnorm(dat$y, mean = y$mu[i], sd = y$sigma[i], log = TRUE))) # true lp
+
+cons = log(1/sqrt(2 * pi)) # the constant in normal distribution
+my_lp__ = my_lpd - 20 * cons # Stan's lp__
+
+head(y$lpd, n = 30) # retrieve true lp in Stan
+head(my_lpd, n = 30)
+
+head(y$lp__, n = 30) # Stan's "fake" lp
+head(my_lp__, n = 30)
+
+```
