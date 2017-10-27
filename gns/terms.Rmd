@@ -1,0 +1,122 @@
+---
+title: "Interpret parameters of interactive models in REFS"
+output: html_document
+---
+
+In Roche projects, we fitted interactive effects between treatment arms and other variables. However, interpretations of the model parameters are not straight forward. This document aims to answer this question. 
+
+Check model parameters when fitting interactive models in R, before inspecting REFS otuputs.
+
+```{r}
+
+library(dplyr)
+library(contrast)
+
+# interaction between two binary variables
+x1 = sample(c(0, 1), 100, replace = T)
+x2 = sample(c(0, 1), 100, replace = T)
+# response as continuous
+y1 = rnorm(100, 1, 1)
+
+# summarize the response (y) by predictor conditions
+(y1.avg = aggregate(y1 ~ x1 + x2, FUN = "mean"))
+
+# fit interactive model
+summary(glm(y1 ~ x1 * x2))
+
+# parameter interpretation
+# intercept: expected y when both x1 and x2 equal 0 (basal level)
+# x1: expected y when x1 equals 1 and x2 equals 0, conditional on the intercept
+y1.avg[y1.avg$x1 == 1 & y1.avg$x2 == 0, "y1"] - y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 0, "y1"]
+# x2: expected y when x1 equals 0 and x2 equals 1, conditional on the intercept
+y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 1, "y1"] - y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 0, "y1"]
+# x1:x2: expected y when x1 equals 1 and x2 equals 1, conditional on intercept, x1, and x2
+y1.avg[y1.avg$x1 == 1 & y1.avg$x2 == 1, "y1"] - y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 0, "y1"] -
+  (y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 1, "y1"] - y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 0, "y1"]) -
+  (y1.avg[y1.avg$x1 == 1 & y1.avg$x2 == 0, "y1"] - y1.avg[y1.avg$x1 == 0 & y1.avg$x2 == 0, "y1"])
+
+```
+
+Note: 
+1. R output for interactive models are consistent, regardless of the data type of response and predictor variables
+2. we use two binary predictor and continuous response because it is the easist to interpret
+3. but the interactive parameter is still confusing, especially for the interactive term
+4. and people usually construct more meaningful constrast taking R::lm outputs 
+
+REFS output
+
+```{r}
+library(REFSfs)
+library(survival)
+
+# this is starmaster
+ens = fsReadModel("/users/xwang/roche34/otf2/m1.new/NetFragFile.txt.protobuf")
+
+# extract single network
+net = fsSubsetEnsemble(ens, 1)
+
+# netfrag parameters of the network
+otf = fsGetFrags(net, "pfs_AVAL")
+otf$formula
+
+# compare with R output to understand meanings of OTF parameters 
+
+load("~/roche34/otf2/alldata.rdt")
+alldata = refsdf.c1
+vars = fsCausalVars(net, "pfs_AVAL", maxpath = 1)
+
+load("~/roche34/otf2/alldata.rdt")
+mydf = refsdf.c1[c(vars, "pfs_AVAL", "pfs_CNSR")]
+mydf$pfs = Surv(mydf$pfs_AVAL, mydf$pfs_CNSR)
+mydf$asl.treat.char_ARMCD
+
+fit = survreg(pfs ~ asl.treat.char_ARMCD * aig_IGM + 
+                    asl.treat.char_ARMCD * alb_Albumin +
+                    asl.treat.char_ARMCD * alb_Platelet +
+                    asl.treat.char_ARMCD * asl.clin.num_EXINV2 +
+                    asl.treat.char_ARMCD * asl.lab.num_LDH1,
+                    data = mydf)
+
+coef(fit)
+
+length(coef(fit))
+
+# interactive models can be described by making dummy variables
+
+mydf$d0 = as.numeric(mydf$asl.treat.char_ARMCD == 0) 
+mydf$d1 = as.numeric(mydf$asl.treat.char_ARMCD == 1) 
+mydf$d0_aig_IGM = mydf$d0 * mydf$aig_IGM
+mydf$d1_aig_IGM = mydf$d1 * mydf$aig_IGM
+mydf$d0_alb_Albumin = mydf$d0 * mydf$alb_Albumin
+mydf$d1_alb_Albumin = mydf$d1 * mydf$alb_Albumin
+mydf$d0_alb_Platelet = mydf$d0 * mydf$alb_Platelet
+mydf$d1_alb_Platelet = mydf$d1 * mydf$alb_Platelet
+mydf$d0_asl.clin.num_EXINV2 = mydf$d0 * mydf$asl.clin.num_EXINV2
+mydf$d1_asl.clin.num_EXINV2 = mydf$d1 * mydf$asl.clin.num_EXINV2
+mydf$d0_asl.lab.num_LDH1 = mydf$d0 * mydf$asl.lab.num_LDH1
+mydf$d1_asl.lab.num_LDH1 = mydf$d1 * mydf$asl.lab.num_LDH1
+
+fit = survreg(pfs ~ d0 + d1 + 
+                    d0_aig_IGM + d1_aig_IGM +  
+                    d0_alb_Albumin + d1_alb_Albumin +
+                    d0_alb_Platelet + d1_alb_Platelet +
+                    d0_asl.clin.num_EXINV2 + d1_asl.clin.num_EXINV2 +
+                    d0_asl.lab.num_LDH1 + d1_asl.lab.num_LDH1 - 1,
+                    data = mydf)
+
+coef(fit)
+```
+
+Note:
+1. total number of parameters was the same by using R and OTF, means otf fits the same model structure 
+2. this also means in the terms results of PfS that we saw before, the intercept was actually fitted, but not shown, while the intercept was actually shown for binary outputs
+3. however, parameter values are not the same, although some hints by inverting the signs, means OTF was using different optimizing strategies
+4. this is inconvenient, and make it hard for us to debug 
+5. key question for the RD team is to interpret the following two parameters: 
+
+-1. Precdictor (ARM = 0)
+-2. Precdictor (ARM = 1)
+
+6. especially the second, which could potentially be interpreted in 2 ways:
+-1. effects of the predictor when treatment arm equals 1
+-2. effects of the predictor when treatment arm equals 1, but conditional on Predictor (ARM = 0)
