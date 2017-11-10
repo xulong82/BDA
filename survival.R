@@ -21,3 +21,10 @@ train.fit  <- coxph(Surv(futime, fustat) ~ age, x=TRUE, y=TRUE, method="breslow"
 lpnew <- predict(train.fit, newdata=TE)
 
 GHCI(lpnew)
+
+x = 1:36
+beta = seq(from = -1, to = 1, by = 0.1)
+
+beta1 = beta[1]
+y = pweibull(x, shape = 1, scale = exp(beta1))
+plot(x, y)

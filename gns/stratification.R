@@ -3,41 +3,66 @@ library(data.table)
 library(glmnet)
 library(REFSfs)
 library(BMS)
+library(mclust)
+library(nnet)
 
-load("~/roche34/otf2/alldata.rdt")
+# ? cluster the subjects
 
-ens = fsReadModel("/users/xwang/roche34/otf2/m1.new/NetFragFile.txt.protobuf") # network ensemble
-n.nets = fsNumNets(ens)
-
-edges = fsEdgeFrequencies(ens, freqThreshold = 0) 
-terms = fsTermFrequencies(ens, incParamStats=T, freqThreshold = 0)
-
-ooi = "pfs_AVAL"
-edges.ooi = filter(edges, output == ooi)
-
-load("~/roche34/otf2/fs1pfs.rdt")
+# fs results on 1124 patients :: 132 networks :: 100 samples :: 2 arms
+load("~/roche34/otf2/fs1pfs.rdt") # starmaster
 load("~/Projects/roche34/forward/fs1pfs.rdt")
-# forward simulation results on 1124 patients :: 132 networks :: 100 samples :: 2 arms
 nrow(myfs1) == 1124 * 132 * 100 * 2
 
-# step 1: take differential effects results by forward simulation
+# summarize the fs samples per patient per condition
 fs = data.table(myfs1)
 fs = fs[, c("condition", "fixedDataRow", "network", "output", "Variable_Output")]
-fs = fs[, list(output.avg = mean(output), output.med = median(output)), by = "condition,fixedDataRow"]
+fs$output = log2(fs$output + 1)
+fs.stats = fs[, list(output.avg = mean(output), output.sd = sd(output)), by = "condition,fixedDataRow"]
 
-fs.g1 <- fs[fs$condition == "R", ] 
-fs.g2 <- fs[fs$condition == "G", ] 
-
-all(fs.g1$fixedDataRow == fs.g2$fixedDataRow)
+fs.stats.r <- fs.stats[fs.stats$condition == "R", ] 
+fs.stats.g <- fs.stats[fs.stats$condition == "G", ] 
+all(fs.stats.r$fixedDataRow == fs.stats.g$fixedDataRow)
 
 # differential effects per patient per network
-fs.out = mutate(fs.g1, diff = log2(fs.g1$output.avg + 1) - log2(fs.g2$output.avg + 1)) 
-# fs.out = mutate(fs.g1, diff = log2(fs.g1$output.med + 1) - log2(fs.g2$output.med + 1)) 
-fs.out$condition = NULL
+fs.diff = data.frame(sample = fs.stats.r$fixedDataRow, diff = fs.stats.g$output.avg - fs.stats.r$output.avg)
+fs.diff$pval = pval
 
+# --------------------------------------
+# ? any difference by taking only 100 samples to derive the effects per patient per arm
+fs.diff2 = sapply(c("R", "G"), function(x1) {
+  fs.x1 = fs[fs$condition == x1, ]
+  sapply(1:1124, function(x2) { cat(x1, x2, "\n")
+    fs.x2 = fs.x1[fs.x1$fixedDataRow == x2, ]
+    fs.x3 = fs.x2[sample(1:nrow(fs.x2), size = 100, replace = F), "output"]
+    mean(fs.x3$output)
+  })
+})
+
+fs.diff = data.frame(sample = 1:1124, diff = log2(fs.diff2[, "G"] + 1) - log2(fs.diff2[, "R"] + 1))
+fs.diff$pval = pval
+# --------------------------------------
+
+with(fs.diff, plot(diff, pval, xlab = "Differential Effects (G versus R)"))
+with(fs.diff, plot(abs(diff), pval))
+with(fs.diff, hist(diff, n = 20))
+with(fs.diff, hist(pval, n = 20))
+with(fs.diff, hist(-log10(pval), n = 20))
+
+# gaussian mixture decomposition
+mclust = Mclust(fs.diff$diff)
+mclust = Mclust(as.matrix(fs.diff))
+plot(mclust, what = "classification")
+plot(mclust, what = "density") # overlay with hist(fs.diff$diff)
+plot(mclust, what = "BIC") # to understand it
+
+load("~/roche34/otf2/alldata.rdt") # training data
+ens = fsReadModel("/users/xwang/roche34/otf2/m1.new/NetFragFile.txt.protobuf") # network ensemble
+edges = fsEdgeFrequencies(ens, freqThreshold = 0) # edges
+edges.ooi = filter(edges, output == "pfs_AVAL")
 edges.ins = as.character(edges.ooi$input)
+
 mylrt <- sapply(edges.ins, function(x) {
-  lrt.df = data.frame(de = fs.out$diff, biomarker = refsdf.c1[, x])
+  lrt.df = data.frame(de = fs.diff$diff, biomarker = refsdf.c1[, x])
   loglk0 = logLik(lm(de ~ 1, data = lrt.df))
   loglk1 = logLik(lm(de ~ 1 + biomarker, data = lrt.df))
   loglk1 - loglk0
@@ -48,24 +73,49 @@ mylrt$P.value = 1 - pchisq(2 * mylrt$LRT, df = 1)
 
 mylrt = mylrt[order(mylrt$P.value), ]
 mylrt$P.adj = p.adjust(mylrt$P.value, method = "bonferroni", n = ncol(refsdf.c1))  
+rownames(mylrt) = NULL
 
-# regularized regression
+save(mylrt, file = "~/roche34/fs/mylrt.rdt")
+# scp starmaster:~/roche34/fs/mylrt.rdt ~/Projects/roche34/forward
+
+load("~/Projects/roche34/forward/mylrt.rdt")
+datatable(mylrt)
+
+edges.ins = as.character(mylrt$biomarker)
+mylrt2 <- sapply(edges.ins, function(x) {
+  lrt.df = data.frame(de = mclust$classification, biomarker = refsdf.c1[, x])
+  loglk0 = logLik(multinom(de ~ 1, data = lrt.df))
+  loglk1 = logLik(multinom(de ~ 1 + biomarker, data = lrt.df))
+  loglk1 - loglk0
+})
+
+mylrt2 = data.frame(biomarker = edges.ins, LRT = mylrt2)
+mylrt2$P.value = 1 - pchisq(2 * mylrt2$LRT, df = 1)
+
+mylrt2 = mylrt2[order(mylrt2$P.value), ]
+mylrt2$P.adj = p.adjust(mylrt2$P.value, method = "bonferroni", n = ncol(refsdf.c1))  
+rownames(mylrt2) = NULL
+
+datatable(mylrt2)
+
+plot(mylrt$LRT, mylrt2$LRT)
+temp = merge(mylrt, mylrt2, by = "biomarker")
+
+plot(-log10(temp$P.value.x), -log10(temp$P.value.y), xlab = "-log10(P) Continuous", ylab = "-log10(P) Discrete")
+abline(0, 1)
+
+# test multiple biomarkers by regularized regression
 mylasso <- glmnet(y=y.1, x= x.1, family="gaussian")
-  
-# ------------
-# step 2: hierarchical clustering
+
+# multinomial regression using cluster identity
+multinom(y ~ x1 + x2, df1)
+
+# hierarchical clustering
 mydist = dist(fs.out$diff, method = "euclidean")
 myhclust = hclust(mydist)
 plot(myhclust, labels = F)
-
-# step 3: identify optimal cluster number
-# we will get different number of clusters by different cut values
-# effect ~ a_variable_of_cluster_identity
-# essentially the number of binary dummy variables 
-# assess fittness by BIC penalization and use results to identify optimal cluster numbers
-
+# subpopulation identification by different cut values
 mycutree = cutree(myhclust, k = 2:50) # cut trees to sub-groups
-
 # make design matrix by using cutree results
 mydesign = apply(mycutree, 2, function(x) {
   ids = unique(x)
@@ -73,42 +123,15 @@ mydesign = apply(mycutree, 2, function(x) {
   for ( id in ids) mat[x == id, id] = 1 
   mat[, -1] # redundancy
 })
-
 mybic = sapply(mydesign, function(x) BIC(lm(fs.out$diff ~ x)))
 plot(names(mybic), mybic)
-
 # bic formula
 loglik = logLik(lm(fs.out$diff ~ mydesign[[1]]))
 log(nrow(fs.out)) * 3 - 2 * loglik
-#-------------
 
-# Revised steps 2-3: Gaussian mixture model decomposition
-# Line 3900 in refsfsutils package
-
-library(mclust)
-
-x1 = rnorm(100, 1, 1)
-x2 = rnorm(100, 3, 1)
-
-x3 = rnorm(100, 1, 1)
-x4 = rnorm(100, 3, 1)
-
-y1 = c(x1, x2)
-y2 = c(x3, x4)
-
-mclust = Mclust(cbind(y1, y2))
-mclustbic = mclustBIC(cbind(y1, y2))
-
-plot(mclust, what = "classification")
-plot(mclustbic)
- 
-?Mclust
-?mclustBIC
-
-# step 4: biomarker identification
+# biomarker identification
 # regularized (lasso, ipredict) multinomial regression:
 # cluster_identity ~ candidate_predictors
-# cvglmnet function in the code
 
 # LRT method per network 
 fs = data.table(myfs1)
@@ -121,7 +144,7 @@ fs.g2 <- fs[fs$condition == "G", ]
 all(fs.g1$network == fs.g2$network)
 all(fs.g1$fixedDataRow == fs.g2$fixedDataRow)
   
-# differential effects per patient per network
+# differential effects per patient per network by LRT
 fs.out = mutate(fs.g1, diff = log2(fs.g1$output.avg + 1) - log2(fs.g2$output.avg + 1)) 
 fs.out$condition = NULL
   
@@ -138,8 +161,10 @@ mylrt <- sapply(edges.ins, function(x) {
 mylrt = data.frame(biomarker = edges.ins, lrt = mylrt)
 mylrt$P.value = 1 - pchisq(2 * mylrt$lrt, df = 1)
 
-# dan method
+# differential effects per patient per network by PIP
 # initialize results data.frame
+load("~/roche34/otf2/alldata.rdt") # training data
+ens = fsReadModel("/users/xwang/roche34/otf2/m1.new/NetFragFile.txt.protobuf") # network ensemble
 bayesian.res = data.frame(Predictor = numeric(0), PostIncluProb = numeric(0), PostExpectEffect = numeric(0), Network = numeric(0))
   
 ioi = "asl.treat.char_ARMCD"
@@ -148,15 +173,16 @@ ooi = "pfs_AVAL"
 alldata = refsdf.c1
 
 # retrieve causal vars for each network
-lapply(1:n.nets, function(i) { 
+lapply(1:128, function(i) { 
   net1 = fsSubsetEnsemble(ens, i)
   frag = fsGetFrags(net1, "pfs_AVAL")
   frag$input %>% unlist
 })
 
-for (i in 1:n.nets) { cat("network:", i, "\n")
+for (i in 1:128) { cat("network:", i, "\n")
   net1 = fsSubsetEnsemble(ens, i)
-  vars = fsCausalVars(net1, ooi, cutoff = 0, maxpath = -1)
+# vars = fsCausalVars(net1, ooi, cutoff = 0, maxpath = -1)
+  vars = fsCausalVars(net1, ooi, cutoff = 0, maxpath = 1)
   vars = vars[! vars %in% ioi]
     
   if (length(vars) == 0) {
@@ -178,7 +204,7 @@ for (i in 1:n.nets) { cat("network:", i, "\n")
     data0 = alldata[vars]
     data0$diff = fs.out[fs.out$network==i,]$diff
       
-    bms1 = bms(diff ~ ., data = data1, mprior = "uniform", g = "UIP", user.int = F, mcmc="enumerate")
+    bms1 = bms(diff ~ ., data = data0, mprior = "uniform", g = "UIP", user.int = F, mcmc="enumerate")
     bms1.co = data.frame(coef(bms1))
       
     temp = data.frame(cbind(rownames(bms1.co), bms1.co$PIP, bms1.co$Post.Mean, i))

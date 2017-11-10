@@ -1,3 +1,6 @@
+# how to understand the parameter path?
+# what are L1 and L2 regularizations for lasso and ridge?
+
 library(glmnet)
 
 rm(list = ls())
