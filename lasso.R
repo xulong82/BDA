@@ -1,5 +1,12 @@
-# how to understand the parameter path?
-# what are L1 and L2 regularizations for lasso and ridge?
+# l1/2 as loss functions
+
+# l1 or least absolute deviation minimizes the sum of the absolute differences
+# l2 or least squares error minimizs the sum of the square of the differences
+
+# l1/2 as regularization
+
+# regularization is a very important technique in machine learning to prevent overfitting
+# difference between the l1 and l2 is that l2 is the sum of the square of the weights, while L1 is just the sum of the weights
 
 library(glmnet)
 
