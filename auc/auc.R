@@ -5,7 +5,7 @@ library(pROC)
 
 # Titanic data
 
-df = read.csv("~/github/statistics/auc/titanic3.csv")
+df = read.csv("~/GitHub/statistics/auc/titanic3.csv")
 
 df$pclass <- as.factor(df$pclass)
 df$survived <- as.factor(df$survived)
@@ -31,8 +31,6 @@ for(n in ncv) {
   
   lr <- glm(survived ~ ., data = df[v,], family = binomial(logit))
   predictions[!v,"pred"] <- predict(lr, newdata=df[!v,], type="response") 
-  # type = "resposne" gives predicted probabilities
-  # default is the linear predictors (log-odds of the probabilities)
 }
 
 v <- rep(NA, nrow(predictions))
@@ -44,10 +42,14 @@ v <- ifelse(predictions$pred < threshold & predictions$survived == 0, "TN", v)
 predictions$pred_type <- v
 
 # distribution of predicted survival probabilities as violin and jitter points
+library(ggplot2)
 ggplot(data= predictions, aes(x=survived, y=pred)) + 
   geom_violin(fill=rgb(1,1,1,alpha=0.6), color=NA) + 
   geom_jitter(aes(color=pred_type), alpha=0.6) +
   scale_color_discrete(name = "type") +
   labs(title=sprintf("Threshold at %.2f", threshold))
 
+library(pROC)
 pROC::auc(predictions$survived, predictions$pred)
+
+plot(roc(predictions$survived, predictions$pred))
