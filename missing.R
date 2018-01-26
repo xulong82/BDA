@@ -14,3 +14,10 @@ zz = i * xx
 z1 = lm(yy ~ 0 + i + i:xx)
 z2 = lm(yy ~ 0 + i + zz)
 z3 = lm(yy[1:100] ~ 0 + i[1:100] + xx[1:100])
+
+# How to treat missing values?
+# Cons and Pros
+
+# 1. delete the samples
+# 2. imputation
+# 3. categorize the variables
