@@ -49,6 +49,10 @@ y.new = c(y, y.miss)
 
 lm(y.new ~ x.new - 1) %>% summary
 
+# fit multinomial model with nnet
+
+library(nnet)
+
 # end
 
 # binary indicator?
