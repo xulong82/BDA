@@ -1,0 +1,16 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+In cases where there are well-defined hierarchical structures in the data, hierarchical or mixed effects model should be preferred.
+If we opt to pool all samples together and fit a fixed effect model in such cases, we ignore the group information, and won't be able to make group-specific predictions.
+If we opt to estimate group-specific effects by fitting a fixed effect model, we are risky of overfitting by estimating so many parameters, and consequences poor out-of-sample predictions. 
+
+Additional assumption of the random term is the modeling of the group-level effects, such as to fit the group-level effects using a Gaussian model, which might not hold.
+
+? how to use results of a hierarchical model to make prediction of a new group?
+? Andrew in his paper stated it is doable using the radon example
+? Not clear why two variance components overperformance one
+
+To do: case study the Radon data
