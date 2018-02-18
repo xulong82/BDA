@@ -172,13 +172,97 @@ $(document).ready(function () {
 
 
 <!-- rnb-text-begin -->
-<p>In cases where there are well-defined hierarchical structures in the data, hierarchical or mixed effects model should be preferred. If we opt to pool all samples together and fit a fixed effect model in such cases, we ignore the group information, and won’t be able to make group-specific predictions. If we opt to estimate group-specific effects by fitting a fixed effect model, we are risky of overfitting by estimating so many parameters, and consequences poor out-of-sample predictions.</p>
+<div id="summary" class="section level1">
+<h1>Summary</h1>
+<p>Hierarchical or multilevel modeling is a generalization of regression modeling.</p>
+<p>Rationale of multilevel modeling comes from the dependencies of observations within groups.</p>
+<p>In cases where there are well-defined hierarchical structures in the data, there are also multilevel dependencies between samples, and hierarchical or mixed effects model should be preferred. If we opt to pool all samples together and fit a fixed effect model in such cases, we ignore the group information, and won’t be able to make group-specific predictions. If we opt to estimate group-specific effects by fitting a fixed effect model, we are risky of overfitting in groups of few samples, and consequences poor out-of-sample predictions.</p>
 <p>Additional assumption of the random term is the modeling of the group-level effects, such as to fit the group-level effects using a Gaussian model, which might not hold.</p>
-<p>? how to use results of a hierarchical model to make prediction of a new group? ? Andrew in his paper stated it is doable using the radon example ? Not clear why two variance components overperformance one</p>
-<p>To do: case study the Radon data</p>
+<p>In random effect model, we still estimate group-specific parameters, but these parameters are further modeled by hyperparameters. As a result, the group-specific parameter estimand are results of two sources: 1, data within the group; 2, data of other groups also play a role.</p>
+</div>
+<div id="case-study-using-radon-contamination-data" class="section level1">
+<h1>Case study using radon contamination data</h1>
 <!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShyc3RhbilcblxuYGBgIn0= -->
+<pre class="r"><code>library(rstan)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBnZ3Bsb3QyXG5Mb2FkaW5nIHJlcXVpcmVkIHBhY2thZ2U6IFN0YW5IZWFkZXJzXG5yc3RhbiAoVmVyc2lvbiAyLjE1LjEsIHBhY2thZ2VkOiAyMDE3LTA0LTE5IDA1OjAzOjU3IFVUQywgR2l0UmV2OiAyZTFmOTEzZDNjYTMpXG5Gb3IgZXhlY3V0aW9uIG9uIGEgbG9jYWwsIG11bHRpY29yZSBDUFUgd2l0aCBleGNlc3MgUkFNIHdlIHJlY29tbWVuZCBjYWxsaW5nXG5yc3Rhbl9vcHRpb25zKGF1dG9fd3JpdGUgPSBUUlVFKVxub3B0aW9ucyhtYy5jb3JlcyA9IHBhcmFsbGVsOjpkZXRlY3RDb3JlcygpKVxuIn0= -->
+<pre><code>Loading required package: ggplot2
+Loading required package: StanHeaders
+rstan (Version 2.15.1, packaged: 2017-04-19 05:03:57 UTC, GitRev: 2e1f913d3ca3)
+For execution on a local, multicore CPU with excess RAM we recommend calling
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<div id="complete-pool" class="section level3">
+<h3>complete pool</h3>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="mixed-effect-model-partial-pooling" class="section level3">
+<h3>mixed effect model (partial pooling)</h3>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZml0LnBvb2wgPC0gc2FtcGxpbmcobWl4ZWQsIGRhdGEgPSBkYXRhKVxuXG5gYGAifQ== -->
+<pre class="r"><code>fit.pool &lt;- sampling(mixed, data = data)
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5TQU1QTElORyBGT1IgTU9ERUwgJ21peGVkJyBOT1cgKENIQUlOIDEpLlxuXG5HcmFkaWVudCBldmFsdWF0aW9uIHRvb2sgMC4wMDAzNzggc2Vjb25kc1xuMTAwMCB0cmFuc2l0aW9ucyB1c2luZyAxMCBsZWFwZnJvZyBzdGVwcyBwZXIgdHJhbnNpdGlvbiB3b3VsZCB0YWtlIDMuNzggc2Vjb25kcy5cbkFkanVzdCB5b3VyIGV4cGVjdGF0aW9ucyBhY2NvcmRpbmdseSFcblxuXG5JdGVyYXRpb246ICAgIDEgLyAyMDAwIFsgIDAlXSAgKFdhcm11cClcbiJ9 -->
+<pre><code>
+SAMPLING FOR MODEL 'mixed' NOW (CHAIN 1).
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKSW4gY2FzZXMgd2hlcmUgdGhlcmUgYXJlIHdlbGwtZGVmaW5lZCBoaWVyYXJjaGljYWwgc3RydWN0dXJlcyBpbiB0aGUgZGF0YSwgaGllcmFyY2hpY2FsIG9yIG1peGVkIGVmZmVjdHMgbW9kZWwgc2hvdWxkIGJlIHByZWZlcnJlZC4KSWYgd2Ugb3B0IHRvIHBvb2wgYWxsIHNhbXBsZXMgdG9nZXRoZXIgYW5kIGZpdCBhIGZpeGVkIGVmZmVjdCBtb2RlbCBpbiBzdWNoIGNhc2VzLCB3ZSBpZ25vcmUgdGhlIGdyb3VwIGluZm9ybWF0aW9uLCBhbmQgd29uJ3QgYmUgYWJsZSB0byBtYWtlIGdyb3VwLXNwZWNpZmljIHByZWRpY3Rpb25zLgpJZiB3ZSBvcHQgdG8gZXN0aW1hdGUgZ3JvdXAtc3BlY2lmaWMgZWZmZWN0cyBieSBmaXR0aW5nIGEgZml4ZWQgZWZmZWN0IG1vZGVsLCB3ZSBhcmUgcmlza3kgb2Ygb3ZlcmZpdHRpbmcgYnkgZXN0aW1hdGluZyBzbyBtYW55IHBhcmFtZXRlcnMsIGFuZCBjb25zZXF1ZW5jZXMgcG9vciBvdXQtb2Ytc2FtcGxlIHByZWRpY3Rpb25zLiAKCkFkZGl0aW9uYWwgYXNzdW1wdGlvbiBvZiB0aGUgcmFuZG9tIHRlcm0gaXMgdGhlIG1vZGVsaW5nIG9mIHRoZSBncm91cC1sZXZlbCBlZmZlY3RzLCBzdWNoIGFzIHRvIGZpdCB0aGUgZ3JvdXAtbGV2ZWwgZWZmZWN0cyB1c2luZyBhIEdhdXNzaWFuIG1vZGVsLCB3aGljaCBtaWdodCBub3QgaG9sZC4KCj8gaG93IHRvIHVzZSByZXN1bHRzIG9mIGEgaGllcmFyY2hpY2FsIG1vZGVsIHRvIG1ha2UgcHJlZGljdGlvbiBvZiBhIG5ldyBncm91cD8KPyBBbmRyZXcgaW4gaGlzIHBhcGVyIHN0YXRlZCBpdCBpcyBkb2FibGUgdXNpbmcgdGhlIHJhZG9uIGV4YW1wbGUKPyBOb3QgY2xlYXIgd2h5IHR3byB2YXJpYW5jZSBjb21wb25lbnRzIG92ZXJwZXJmb3JtYW5jZSBvbmUKClRvIGRvOiBjYXNlIHN0dWR5IHRoZSBSYWRvbiBkYXRhCg==</div>
+Gradient evaluation took 0.000378 seconds
+1000 transitions using 10 leapfrog steps per transition would take 3.78 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<blockquote>
+<p>how to use HLM results to make predictions on a new group likely expected mean of the group-specific parameters</p>
+</blockquote>
+<blockquote>
+<p>what is the expected mean of the group-specific parameters? it deviates a bit, and is always between the overall expected mean and the within group expected mean.</p>
+</blockquote>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3VtbWFyeShsbShsb2cucmFkb24gfiBiYXNlbWVudCwgZGF0YSA9IHJhZG9uLjEpKVxuXG5gYGAifQ== -->
+<pre class="r"><code>summary(lm(log.radon ~ basement, data = radon.1))
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5DYWxsOlxubG0oZm9ybXVsYSA9IGxvZy5yYWRvbiB+IGJhc2VtZW50LCBkYXRhID0gcmFkb24uMSlcblxuUmVzaWR1YWxzOlxuICAgICBNaW4gICAgICAgMVEgICBNZWRpYW4gICAgICAgM1EgICAgICBNYXggXG4tMS44MTk0NiAtMC41MTQ5NSAtMC4wMDcyOSAgMC41ODQwNSAgMS4xODg2OSBcblxuQ29lZmZpY2llbnRzOlxuICAgICAgICAgICAgRXN0aW1hdGUgU3RkLiBFcnJvciB0IHZhbHVlIFByKD58dHwpICAgIFxuKEludGVyY2VwdCkgICAwLjkwMzIgICAgIDAuMTAzMiAgIDguNzQ5IDEuMThlLTExICoqKlxuYmFzZW1lbnQgICAgIC0xLjIxMjAgICAgIDAuNDI5OCAgLTIuODIwICAwLjAwNjg3ICoqIFxuLS0tXG5TaWduaWYuIGNvZGVzOiAgMCDigJgqKirigJkgMC4wMDEg4oCYKirigJkgMC4wMSDigJgq4oCZIDAuMDUg4oCYLuKAmSAwLjEg4oCYIOKAmSAxXG5cblJlc2lkdWFsIHN0YW5kYXJkIGVycm9yOiAwLjcyMjYgb24gNTAgZGVncmVlcyBvZiBmcmVlZG9tXG5NdWx0aXBsZSBSLXNxdWFyZWQ6ICAwLjEzNzIsXHRBZGp1c3RlZCBSLXNxdWFyZWQ6ICAgMC4xMiBcbkYtc3RhdGlzdGljOiA3Ljk1MiBvbiAxIGFuZCA1MCBERiwgIHAtdmFsdWU6IDAuMDA2ODY4XG4ifQ== -->
+<pre><code>
+Call:
+lm(formula = log.radon ~ basement, data = radon.1)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1.81946 -0.51495 -0.00729  0.58405  1.18869 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)   0.9032     0.1032   8.749 1.18e-11 ***
+basement     -1.2120     0.4298  -2.820  0.00687 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 0.7226 on 50 degrees of freedom
+Multiple R-squared:  0.1372,    Adjusted R-squared:   0.12 
+F-statistic: 7.952 on 1 and 50 DF,  p-value: 0.006868</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+</div>
+</div>
+
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKIyBTdW1tYXJ5CgpIaWVyYXJjaGljYWwgb3IgbXVsdGlsZXZlbCBtb2RlbGluZyBpcyBhIGdlbmVyYWxpemF0aW9uIG9mIHJlZ3Jlc3Npb24gbW9kZWxpbmcuCgpSYXRpb25hbGUgb2YgbXVsdGlsZXZlbCBtb2RlbGluZyBjb21lcyBmcm9tIHRoZSBkZXBlbmRlbmNpZXMgb2Ygb2JzZXJ2YXRpb25zIHdpdGhpbiBncm91cHMuCgpJbiBjYXNlcyB3aGVyZSB0aGVyZSBhcmUgd2VsbC1kZWZpbmVkIGhpZXJhcmNoaWNhbCBzdHJ1Y3R1cmVzIGluIHRoZSBkYXRhLCB0aGVyZSBhcmUgYWxzbyBtdWx0aWxldmVsIGRlcGVuZGVuY2llcyBiZXR3ZWVuIHNhbXBsZXMsIGFuZCBoaWVyYXJjaGljYWwgb3IgbWl4ZWQgZWZmZWN0cyBtb2RlbCBzaG91bGQgYmUgcHJlZmVycmVkLgpJZiB3ZSBvcHQgdG8gcG9vbCBhbGwgc2FtcGxlcyB0b2dldGhlciBhbmQgZml0IGEgZml4ZWQgZWZmZWN0IG1vZGVsIGluIHN1Y2ggY2FzZXMsIHdlIGlnbm9yZSB0aGUgZ3JvdXAgaW5mb3JtYXRpb24sIGFuZCB3b24ndCBiZSBhYmxlIHRvIG1ha2UgZ3JvdXAtc3BlY2lmaWMgcHJlZGljdGlvbnMuCklmIHdlIG9wdCB0byBlc3RpbWF0ZSBncm91cC1zcGVjaWZpYyBlZmZlY3RzIGJ5IGZpdHRpbmcgYSBmaXhlZCBlZmZlY3QgbW9kZWwsIHdlIGFyZSByaXNreSBvZiBvdmVyZml0dGluZyBpbiBncm91cHMgb2YgZmV3IHNhbXBsZXMsIGFuZCBjb25zZXF1ZW5jZXMgcG9vciBvdXQtb2Ytc2FtcGxlIHByZWRpY3Rpb25zLiAKCkFkZGl0aW9uYWwgYXNzdW1wdGlvbiBvZiB0aGUgcmFuZG9tIHRlcm0gaXMgdGhlIG1vZGVsaW5nIG9mIHRoZSBncm91cC1sZXZlbCBlZmZlY3RzLCBzdWNoIGFzIHRvIGZpdCB0aGUgZ3JvdXAtbGV2ZWwgZWZmZWN0cyB1c2luZyBhIEdhdXNzaWFuIG1vZGVsLCB3aGljaCBtaWdodCBub3QgaG9sZC4KCkluIHJhbmRvbSBlZmZlY3QgbW9kZWwsIHdlIHN0aWxsIGVzdGltYXRlIGdyb3VwLXNwZWNpZmljIHBhcmFtZXRlcnMsIGJ1dCB0aGVzZSBwYXJhbWV0ZXJzIGFyZSBmdXJ0aGVyIG1vZGVsZWQgYnkgaHlwZXJwYXJhbWV0ZXJzLgpBcyBhIHJlc3VsdCwgdGhlIGdyb3VwLXNwZWNpZmljIHBhcmFtZXRlciBlc3RpbWFuZCBhcmUgcmVzdWx0cyBvZiB0d28gc291cmNlczogMSwgZGF0YSB3aXRoaW4gdGhlIGdyb3VwOyAyLCBkYXRhIG9mIG90aGVyIGdyb3VwcyBhbHNvIHBsYXkgYSByb2xlLiAKCiMgQ2FzZSBzdHVkeSB1c2luZyByYWRvbiBjb250YW1pbmF0aW9uIGRhdGEKCmBgYHtyfQpsaWJyYXJ5KHJzdGFuKQpsb2FkKCJ+L0dpdEh1Yi9zdGF0cy9taXhlZC9yYWRvbi5yZHQiKQphdHRhY2gocmFkb24pCgpoaXN0KGxvZy5yYWRvbikKdGFibGUoYmFzZW1lbnQpCgp1bmlxdWUodXJhbml1bVtjb3VudHkgPT0gMV0pCnVuaXF1ZSh1cmFuaXVtW2NvdW50eSA9PSAyXSkKYGBgCgojIyMgY29tcGxldGUgcG9vbAoKYGBge3J9CnBvb2wgPSBzdGFuX21vZGVsKCJ+L0dpdEh1Yi9zdGF0cy9taXhlZC9wb29sLnN0YW4iKQoKeCA8LSBjYmluZCgxLCByYWRvbiRiYXNlbWVudCkKZGF0YSA8LSBsaXN0KE4gPSBkaW0oeClbMV0sIEQgPSBkaW0oeClbMl0sIHggPSB4LCB5ID0gcmFkb24kbG9nLnJhZG9uKQoKZml0LnBvb2wgPC0gc2FtcGxpbmcocG9vbCwgZGF0YSA9IGRhdGEpCncgPC0gZXh0cmFjdChmaXQucG9vbCkkdwoKcGxvdChiYXNlbWVudCwgbG9nLnJhZG9uKTsgbGluZXMoYmFzZW1lbnQsIHggJSolIGFwcGx5KHcsIDIsIG1lYW4pLCBjb2w9J3JlZCcpCmBgYAoKIyMjIG1peGVkIGVmZmVjdCBtb2RlbCAocGFydGlhbCBwb29saW5nKQoKYGBge3J9Cm1peGVkID0gc3Rhbl9tb2RlbCgifi9HaXRIdWIvc3RhdHMvbWl4ZWQvbWl4ZWQuc3RhbiIpCgpkYXRhJEMgPSBsZW5ndGgodW5pcXVlKGNvdW50eSkpCmRhdGEkbCA9IGNvdW50eQpmaXQubWl4ZWQgPC0gc2FtcGxpbmcobWl4ZWQsIGRhdGEgPSBkYXRhKQp3IDwtIGV4dHJhY3QoZml0LnBvb2wpJHcKCmBgYAoKPiBob3cgdG8gdXNlIEhMTSByZXN1bHRzIHRvIG1ha2UgcHJlZGljdGlvbnMgb24gYSBuZXcgZ3JvdXAKPiBsaWtlbHkgZXhwZWN0ZWQgbWVhbiBvZiB0aGUgZ3JvdXAtc3BlY2lmaWMgcGFyYW1ldGVycwoKPiB3aGF0IGlzIHRoZSBleHBlY3RlZCBtZWFuIG9mIHRoZSBncm91cC1zcGVjaWZpYyBwYXJhbWV0ZXJzPwo+IGl0IGRldmlhdGVzIGEgYml0LCBhbmQgaXMgYWx3YXlzIGJldHdlZW4gdGhlIG92ZXJhbGwgZXhwZWN0ZWQgbWVhbiBhbmQgdGhlIHdpdGhpbiBncm91cCBleHBlY3RlZCBtZWFuLiAKCmBgYHtyfQpwcmludChmaXQubWl4ZWQsIHBhcnMgPSAibXVfdyIpCnByaW50KGZpdC5taXhlZCwgcGFycyA9IGMoIndbMiwxXSIsICJ3WzIsMl0iKSkKCnJhZG9uLjEgPSAgcmFkb25bcmFkb24kY291bnR5ID09IDIsIF0Kc3VtbWFyeShsbShsb2cucmFkb24gfiBiYXNlbWVudCwgZGF0YSA9IHJhZG9uLjEpKQoKYGBgCg==</div>
 
 
 
