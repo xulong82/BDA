@@ -55,8 +55,6 @@ coef(cvfit, s = "lambda.min") %>% as.matrix
 test = glmnet(x, y, family = "gaussian", lambda = cvfit$lambda.min)
 coef(test) %>% as.matrix
 
-# ? why l1 penalty put coefficients of non-relevant predictors all the way to 0
-
 # interaction terms
 
 data <- data.frame(matrix(rnorm(9 * 10), ncol = 9))
@@ -70,3 +68,5 @@ y <- data$y
 x <- model.matrix(f, data)[, -1]
 glmnet(x, y)
 
+# why l1 penalty put coefficients of non-relevant predictors all the way to 0?
+# some secret property in minimizing lasso's cost function
