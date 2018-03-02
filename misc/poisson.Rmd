@@ -1,0 +1,35 @@
+# Poisson regression (PR)
+
+PR models are GLM with the logarithm as the link function, and the Poisson distribution function as the probability distribution of the response.
+
+1. response variable Y follows Poisson distribution;
+2. logarithm of its expected value of y can be modeled by a linear combination of unknown parameters.
+
+Poisson distribution pmf = $\frac{\lambda^k e^{-\lambda}}{k!}$
+
+# rate and offset
+
+PR is to model count data, it is readily useful to model rate data (divide count by a variable var, thus rate as count/var), with an offset parameter
+
+$log\frac{\lambda}{var} = \beta_0 + \beta_1 x$
+$log(\lambda) = log(var) + \beta_0 + \beta_1 x$
+
+Here, $log(var)$ serves as an offset, which is a variable that is forced to have a coefficient of 1.
+
+pmf.poi = function(lambda, x) lambda^x * exp(-lambda) / factorial(x)
+
+y1 = rpois(1e3, lambda = 1)
+hist(y1, n = 5e1)
+
+y2 = rpois(1e3, lambda = 2)
+hist(y2, n = 5e1)
+
+y3 = rpois(1e3, lambda = 3)
+hist(y3, n = 5e1)
+
+y10 = rpois(1e3, lambda = 10)
+hist(y10, n = 5e1)
+
+mean(y3)
+var(y3)
+pmf.poi(3, 3)
