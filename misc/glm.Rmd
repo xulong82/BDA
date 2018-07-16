@@ -1,0 +1,59 @@
+---
+title: "glm"
+author: "Xulong Wang"
+date: "October 21, 2015"
+output: pdf_document
+---
+
+library(rstan)
+
+rm(list = ls())
+setwd("~/Dropbox/GitHub/BDA")
+
+glm_stan <- stan_model("glm.stan")
+
+load("adsp.rdt")
+
+cov <- adsp$mdata[c("Age", "Sex", "Apoe2", "Apoe4")]
+cov$Sex <- as.integer(cov$Sex) - 1
+
+Sigma <- adsp$kinship$autosome
+Sigma[Sigma < 0] <- 0
+
+Sigma <- t(chol(Sigma))
+Sigma <- t(chol(Sigma[1:300, 1:300]))
+
+Ad <- as.numeric(adsp$mdata$AD2)
+
+dat = list(N = 576, K = 4, D = 4, cov = cov, Sigma = Sigma, Ad = Ad)
+dat = list(N = 300, K = 4, D = 4, cov = cov[1:300, ], Sigma = Sigma, Ad = Ad[1:300])
+
+fit <- sampling(glm_stan, data = dat, chain = 2, iter = 400, warmup = 200)
+
+print(fit, pars = c("c", "beta", "z[1]", "z[2]", "z[3]", "random[1]", "random[2]", "random[3]"))
+print(fit, pars = c("c", "beta", "scale", "z[1]", "z[2]", "random[1]", "random[2]", "random[3]"))
+
+plot(fit, pars = c("c", "beta"))
+
+# is the scale parameter necessary?
+# parameter "scale" isn't necessary, only cause scalability issue
+
+opt <- optimizing(glm_stan, data = dat)
+opt$par[c("c[1]", "c[2]", "c[3]", "beta[1]", "beta[2]", "beta[3]", "beta[4]", "scale")]
+opt$par[paste0("random[", 1:20, "]")]
+
+sample = extract(fit)
+
+z = samples$z
+random = samples$random
+
+var(z)[1:10, 1:10]
+var(random)[1:10, 1:10]
+
+x = summary(fit)$summary[, "mean"]
+init = as.list(x)
+init$lp__ = NULL
+
+fit <- sampling(glm_stan, data = dat, chain = 3, init = list(c1 = init, c2 = init, c3 = init),
+                 iter = 400, warmup = 200, show_messages = F)
+

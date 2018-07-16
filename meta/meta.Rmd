@@ -1,25 +1,66 @@
-# Meta analysis as a method to pool together evidences of previous studies.
+---
+title: "Statistical Models of Meta-analysis"
+output: html_document
+---
 
-# Fixed-effect meta-analysis
-# Assumption: there is a fixed underlying effect, which does not change across the studies
+## Meta-analysis of 9 randomized controlled trials (RCTs) of breast cancer screening.
 
-1. $\mu_i$ and $\sigma_i$ be the effect and the standard error of the i-th study
-2. $w_i$ as weight assigned to this study is $\frac{1}{v_i}$, where $v_i$ is the varaince ($\sigma^2$)
-3. the weighted effect $\hat{\mu}$ equals $\frac{\sum_{i=1}^{k}{w_i \mu_i}}{\sum_{i=1}^{k}w_i}$
-4. the weighted variance $\hat{v}$ equals $\frac{1}{\sum_{i=1}^{k}w_i}$
-5. the weighted effect is the combined effect, with standard error $\sqrt{\hat{v}}$
+```{r}
+library(rstan)
 
-# Random-effect meta-analysis
-# Assumption: there is no fixed underlying effect, instead effects are study-specific
+rct <- data.frame(study = 1:9) # study id
+rct$d1 <- c(218, 87, 126, 135, 105, 107, 66, 88, 105) # number of death in group 1
+rct$n1 <- c(31000, 20695, 38589, 38491, 25214, 19711, 40318, 21650, 53884) # number of total in group 1
+rct$d0 <- c(262, 108, 104, 173, 108, 105, 45, 162, 251) # number of death in group 0
+rct$n0 <- c(31000, 20783, 18582, 37403, 25216, 19694, 19943, 29961, 106956) # number of total in group 0
 
-There are two levels of sampling, and two source of error: 
-1, the true effect sizes θ are distributed about $\mu$ of each study with a variance $\tau^2$, which reflects the actual distribution of the true effects about their mean; 
-2, the observed effect $\mu_i$ for the i-th study is distributed about that $\mu_i$ with a variance $\sigma_i^2$, which depends primarily on the sample size for that study. 
+rct$p1 <- rct$d1/rct$n1 # risk in group 1
+rct$p0 <- rct$d0/rct$n0 # risk in group 0
+rct$rr <- rct$p1/rct$p0 # relative risk of group 2 to group 1
+rct$lrr <- log(rct$rr) # log scale
+rct$lse <- sqrt((1 - rct$p1)/(rct$p1 * rct$n1) + (1 - rct$p0)/(rct$p0 * rct$n0)) # se using delta method
+rct$lower <- exp(rct$lrr - qnorm(.975) * rct$lse)
+rct$upper <- exp(rct$lrr + qnorm(.975) * rct$lse)
 
-Random effects analysis decomposes variance into the two parts, within-studies $\sigma^2$ and between-studies $\tau^2$, and
-then use both parts when assigning the weights. 
+library(metafor)
+p <- forest(x = rct$rr, ci.lb = rct$lower, ci.ub = rct$upper, slab = paste("Study", rct$study), refline = 1)
+text(min(p$xlim), .88 * max(p$ylim), "Study", pos = 4, font = 2)
+text(max(p$xlim), .88 * max(p$ylim), "Relative Risk [95% CI]", pos = 2, font = 2)
+```
 
-The formulas are quite tedious, detailed in $meta.pdf$.
+## Meta-analysis models are in fact hiearchical model in Bayesian framework
 
-# Fixed-effect model weight large studies more than random-effect model 
- 
+$$y_i \sim N(\theta_j, \sigma_j^2)$$
+$$\theta_j \sim N(\mu, \tau^2)$$
+Equivalently:
+
+$$y_i = \mu + u_j + e_j$$
+$$u_j \sim N(0, \tau^2)$$
+$$e_j \sim N(0, \sigma^2)$$
+
+$e$ and $u$ are two variance components that capture within study sampling error and between study sampling error, respectively.
+
+## There are, in general, 3 ways to estimate the random effects
+
+1. No pooling: there is a separate model for each study, so that $\theta_j$ = $y_j$. This is a equivalent to set $\tau$ as $\infty$.
+2. Complete pooling: patients in each study are random samples from a common distribution, so that $\theta_j$ = $\mu$. This is a equivalent to set $\tau$ as 0. This is also equivalent to a fixed-effect model.
+3. Partial-pooling: In this case, $\tau$ is unknown and is due to be estimated.
+
+```{r}
+data = list(J = 9, y = rct$lrr, sigma = rct$lse)
+
+fixed.stan = stan_model("~/Git/stats/meta/fixed.stan")
+
+fixed.fit = sampling(fixed.stan, data)
+print(fixed.fit)
+
+# consistent with fixed effect model using inverse-variance weighting method
+
+sum(data$y * data$sigma^{-2}) / sum(data$sigma^{-2})
+sqrt(1 / sum(data$sigma^{-2}))
+
+random.stan = stan_model("~/Git/stats/meta/random.stan")
+
+random.fit = sampling(random.stan, data)
+print(random.fit)
+```

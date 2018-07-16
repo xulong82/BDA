@@ -1,0 +1,95 @@
+---
+title: "Error terms in generalized linear models"
+author: "Xulong Wang"
+date: "November 5, 2015"
+output: pdf_document
+---
+
+## Model structure: linear model
+
+$$E(Y_i|X_i) = \beta_0 + \beta_1 X_i$$
+$$\epsilon_i \sim N(0, \sigma^2)$$
+
+## Model structure: generalized linear model (logistic)
+
+$$Prob(Y_i = 1) = \pi_i$$
+$$E(Y_i|X_i) = \pi_i = \beta_0 + \beta_1 X_i$$
+$$Var(Y_i) = \pi_i(1-\pi_i)$$
+
+## Example: water temperature can predict male turtles proportion
+
+```{r}
+
+library(gtools)
+
+rm(list = ls())
+
+temp = c(27.2, 27.7, 28.3, 28.4, 29.9)
+nmale = c(2, 17, 26, 19, 27)
+nfemale = c(25, 7, 4, 8, 1)
+ntur = nmale + nfemale 
+pmale = nmale / ntur
+
+plot(temp, pmale, ylim = c(0, 1), xlab = "Temperature", ylab = "P(male)")
+
+```
+
+## OLS directly on probability 
+
+```{r}
+
+lm0 = lm(pmale ~ temp)
+res = residuals(lm0)
+
+plot(temp, pmale, ylim = c(0, 1), xlab = "Temperature", ylab = "P(male)")
+lines(temp, lm0$fitted, col = "blue", lwd = 3)
+
+```
+
+## OLS on logit-transformed probability 
+
+```{r}
+
+log.pmale = logit(pmale)
+lm1 = lm(log.pmale ~ temp)
+summary(lm1)
+
+fitted(lm1)
+inv.logit(fitted(lm1))
+
+x = seq(27, 30, 0.1)
+y = inv.logit(summary(lm1)$coefficients[1] + x * summary(lm1)$coefficients[2])
+
+plot(temp, pmale, ylim = c(0, 1), xlab = "Temperature", ylab = "P(male)")
+points(x, y, col = "red", pch = 19)
+
+```
+
+## MLE
+
+```{r}
+
+glmf = glm(pmale ~ temp, family = binomial, weight = ntur)
+fitted(glmf)
+
+y = inv.logit(summary(glmf)$coefficients[1] + x * summary(glmf)$coefficients[2])
+
+plot(temp, pmale, ylim = c(0, 1), xlab = "Temperature", ylab = "P(male)")
+points(x, y, col = "green", pch = 18)
+
+```
+
+## MLE and OLS comparison
+
+```{r}
+
+sum(dbinom(nmale, ntur, fitted(glmf), log = T))
+sum(dbinom(nmale, ntur, inv.logit(fitted(lm1)), log = T))
+
+x = 1:10
+y = 2:11 + rnorm(10, 0, 1)
+
+lm(y ~ x)
+glm(y ~ x)
+
+```
