@@ -35,11 +35,28 @@ The exponential model of survival data assume exponential distribution for the s
 $$S(t) = exp(-\lambda t)$$
 $$h(t) = \lambda$$
 $$f(t) = \lambda * exp(-\lambda t)$$
+# Event density function
+
 ```{r}
 k = 2
 t = 1:1e3 / 1e2 
 y = k * exp(-k * t)
 plot(t, y)
+```
+
+# Likelihood function
+
+```{r}
+h = 1:1e3 / 1e2
+l1 = h^10 * exp(-h * 10)
+l2 = h^10 * exp(-h * 15)
+
+which.max(l1)
+which.max(l2)
+
+plot.new()
+frame()
+plot(h, l1); lines(h, l2, col = "red")
 ```
 
 # Weibull model
