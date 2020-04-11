@@ -1,0 +1,47 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Given the sample distributions of two treatment responses, how the power change as a function of the sample size in each treatment arm?
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+x1 = rnorm(1e4, 1, 2)
+x2 = rnorm(1e4, 2, 2)
+x0 = x2 - x1
+
+y = data.frame(data = c(x1, x2, x0), Arm = rep(c("A", "B", "O"), each = 1e4))
+y %>% group_by(Arm) %>% summarise(mean = mean(data), sd = sd(data), var = var(data))
+ggplot(y, aes(x = data)) + geom_density(aes(fill = Arm), alpha = .2)
+
+```
+
+## Power: probability of rejecting the null hypothesis when the null hypotheis is not true
+
+```{r}
+N = 2:1e3 # sampling times
+M = 2:1e2 # number of samples
+
+quantile(x0, 0.975)
+qnorm(p = 0.975, mean = 2, sd = sqrt(32))
+
+y2 = lapply(M, function(m) {
+  m1 = sapply(N, function(n) {
+    s1 = sample(x0, size = m)
+    pnorm(0, mean = mean(s1), sd = sd(s1)/sqrt(m))
+  })
+  data.frame(M = m, power = mean(m1 < 0.025))
+}); y2 = do.call(rbind, y2)
+
+ggplot(y2, aes(x = M, y = power)) + geom_point()
+z = y2 %>% filter(power < 0.91 & power > 0.89)
+median(z$M)
+
+```
+
+# What about we miscalculated the effect sizes
+

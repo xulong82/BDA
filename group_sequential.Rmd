@@ -1,0 +1,12 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+How would be stopping boundaries for efficacy and futility are defined?
+More specifically, do the two decisions affect each other?
+
+```{r}
+plot(cars)
+```
+

@@ -1,0 +1,104 @@
+---
+title: "glm_stuff"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## While modeling binary data, such as the disease case and controls, it is often the case that case prevalences in the data are different than the case prevalences in the general population.
+
+## This is especially the case in GWAS of diseases, where the cases are often more prevalent in the data, aka, oversampling
+
+## How does this affect model outputs?
+
+## Claim 
+
+## Effect estimates of predictors in logistic regression models are independent of the overall case proportion
+
+## Effect estimates of predictors in linear model are dependent on the overall case proportion
+
+## Really?
+
+```{r}
+N = 1e3
+
+x0 = rbinom(N, 1, 0.1)
+x1 = rbinom(N, 1, 0.3)
+  
+y0 = rbinom(N, 1, 0.1)
+y1 = rbinom(N, 1, 0.3)
+  
+x = c(x0, x1)
+y = c(y0, y1)
+
+glm(y ~ x, family = "binomial") %>% summary
+
+```
+
+
+## Logistic model
+
+```{r}
+k = seq(0.1, 0.9, 0.01)
+
+fit1 = lapply(k, function(k1) { cat(k1, "\n")
+  x = c(x0, sample(x1, N * k1))
+  y = c(y0, sample(y1, N * k1))
+
+  fit = summary(glm(y ~ x, family = binomial))
+  fit$coefficients["x", ]
+}); fit1 = do.call(rbind, fit1) %>% as.data.frame
+
+plot(k, fit1$Estimate)
+```
+
+## Linear model
+
+```{r}
+
+fit2 = lapply(k, function(k1) { cat(k1, "\n")
+  x = c(x0, sample(x1, N * k1))
+  y = c(y0, sample(y1, N * k1))
+
+  fit = summary(lm(y ~ x))
+  fit$coefficients["x", ]
+}); fit2 = do.call(rbind, fit2) %>% as.data.frame
+
+plot(k, fit2$Estimate)
+
+```
+
+## That looks right!
+
+## A review of logistic regression model
+
+$$logit(p(x)) = log \frac {p(x)} {1 - p(x)} = \alpha + \beta * x$$
+p(x) is the probability of case for a given value of x. 
+
+$$OR = \frac {odds\ of\ disease\ among\ exposed} {odds\ of\ disease\ among\ unexposed}$$
+
+$$OR = \frac {p(1) / (1-p(1))} {p(0) / (1-p(0))}$$
+
+$$log(OR) = logit(p(1)) - logit(p(0)) = \beta$$
+
+
+##
+
+```{r}
+
+N = 1e4
+
+x0 = rnorm(N, 0, 1)
+x1 = rnorm(N, 1, 1)
+
+y0 = rbinom(N, 1, 0.1)
+y1 = rbinom(N, 1, 0.5)
+
+x = c(x0, x1)
+y = c(y0, y1)
+
+glm(y ~ x, family = "binomial") %>% summary
+
+```

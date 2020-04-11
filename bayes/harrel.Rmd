@@ -1,0 +1,81 @@
+---
+title: "Bayesian inference in clinical studies"
+output: html_notebook
+---
+
+# To demonstrate how Bayesian statistics control for multiplicity issue
+
+```{r}
+library(rms)
+
+```
+
+# prior to generate the real efficacy
+
+```{r}
+
+sd1 <- 1 / qnorm(1 - 0.1)
+sd2 <- 0.25 / qnorm(1 - 0.05)
+wt  <- 0.5   # 1:1 mixture
+pdensity <- function(x) wt * dnorm(x, 0, sd1) + (1 - wt) * dnorm(x, 0, sd2)
+x <- seq(-3, 3, length=200)
+plot(x, pdensity(x), type='l', xlab='Efficacy', ylab='Prior Degree of Belief')
+
+```
+
+# sequential test simulation
+
+```{r}
+
+N = 500 # number of samples each trial
+nsim = 50000 # number of trials
+
+sd1 <- 1 / qnorm(1 - 0.1)
+sd2 <- 0.25 / qnorm(1 - 0.05)
+wt = 0.5
+
+prior.mu = 0
+prior.mu <- rep(prior.mu, length=2)
+prior.sd = c(sd1, sd2) 
+prior.sd <- rep(prior.sd, length=2)
+
+v1 <- sd1 ^ 2
+v2 <- sd2 ^ 2
+
+# stopping rule for efficacy: posterior probability mu > 0 > 0.95
+mucut = 0 # efficacy cutoff: mean
+postcut = 0.95 # efficacy cutoff: probability
+
+j <- 1 : N
+cmean <- Mu <- Post <- postfe <- postmean <- numeric(nsim)
+stopped <- integer(nsim)
+
+# function to compute posterior mean
+pmean <- gbayesMixPost(NA, NA, d0=prior.mu[1], d1=prior.mu[2], v0=v1, v1=v2, mix=wt, what='postmean')
+  
+for(i in 1 : nsim) { # See http://stats.stackexchange.com/questions/70855
+    component <- if(wt == 1) 1 else sample(1 : 2, size=1, prob=c(wt, 1. - wt))
+    mu <- prior.mu[component] + rnorm(1) * prior.sd[component] # true efficacy
+    
+    y  <- rnorm(N, mean=mu, sd = 1)
+    ybar <- cumsum(y) / j    # all N means for N sequential analyses
+    
+    pcdf <- gbayesMixPost(ybar, 1. / j, d0=prior.mu[1], d1=prior.mu[2], v0=v1, v1=v2, mix=wt, what='cdf')
+    post  <- 1 - pcdf(mucut) # posterior efficacy
+    
+    stopped[i] <- s <- if(max(post) < postcut) N else min(which(post >= postcut)) # stopage step
+    Mu[i] <- mu # true efficacy
+    cmean[i] <- ybar[s]   # observed mean at stopping
+    postmean[i] <- pmean(x=ybar[s], v = 1. / s)  # posterior mean at stopping
+    Post[i]  <- post[s]   # posterior probability at stopping
+}
+
+table(stopped < N)
+
+mean(Post[stopped < N])
+summary(Mu[stopped < N])
+mean(Mu[stopped < N] > 0)
+hist(Mu[stopped < N])
+
+```
+
